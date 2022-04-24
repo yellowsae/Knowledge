@@ -195,6 +195,15 @@ v-for 指令基于一个数组来渲染一个列表。 `v-for` 指令需要使�
 
 
 
+> 总结： 
+>
+> - 当 v-for 和  v-if  处于同一个节点时，v-for 的优先级 比 v-if 的优先级高。 这意味着 v-if 将分别重复运行于每个 v-for 循环中， 会造成很大的性能浪费，所以不建议 v-for 和 v-if 连用
+> - 解决： 
+>   - 这种场景建议使用 computed，先对数据进行过滤
+>   - 使用 模板标签 `template`
+
+
+
 
 
 ## 对vue生命周期的理解 
@@ -250,6 +259,22 @@ vue的生命周期可以分为8个阶段 ： 创建前后、 载入前后、更�
 
 
 
+#### 组件生命周期
+
+生命周期（父子组件） 父组件beforeCreate --> 父组件created --> 父组件beforeMount --> 子组件beforeCreate --> 子组件created --> 子组件beforeMount --> 子组件 mounted --> 父组件mounted -->父组件beforeUpdate -->子组件beforeDestroy--> 子组件destroyed --> 父组件updated
+
+**加载渲染过程** 父beforeCreate->父created->父beforeMount->子beforeCreate->子created->子beforeMount->子mounted->父mounted
+
+**挂载阶段** 父created->子created->子mounted->父mounted
+
+**父组件更新阶段** 父beforeUpdate->父updated
+
+**子组件更新阶段** 父beforeUpdate->子beforeUpdate->子updated->父updated
+
+**销毁阶段** 父beforeDestroy->子beforeDestroy->子destroyed->父destroyed
+
+
+
 
 
 ## 什么是虚拟DOM
@@ -269,6 +294,8 @@ vue的生命周期可以分为8个阶段 ： 创建前后、 载入前后、更�
 - `pach` 算法 —— 将两个虚拟`DOM`对象的差异应用到真正的`DOM`树
 
 
+
+> 因为Vue的双向数据绑定，是需要经常操作DOM的，而频繁的操作DOM的会影响性能，所以Vue底层使用虚拟DOM，Vue的虚拟DOM是 Vue底层通过 JavaScript 模拟出来的和真实DOM一样的 虚拟DOM。用户是看不见虚拟DOM的。 当用户双向绑定的数据发生改变时，采用 diff 算法， 虚拟的DOM和浏览器真实的DOM进行比较， 数据的改变自会在需要数据的位置发生改变，其他地方并不会重新加载。
 
 
 
@@ -393,3 +420,164 @@ window.history.replaceState(null, null, path);
 Vuex 的原理图
 
 ![](https://vuex.vuejs.org/vuex.png)
+
+
+
+## `computed`与`watch`
+
+
+
+既能用 computed 实现又可以用 watch 监听来实现功能， 但是更推荐使用 computed ， 重点是在于 computed 的缓存功能 computed 计算属性是用来声明式的描述一个值依赖了其他值， 当所以依赖的值或者变量改变时，计算属性也会跟着改变；  watch 监听的是 在 data 中定义的变量， 当该变量变化时，会触发 watch 方法。
+
+
+
+
+
+**watch 属性监听** 是一个对象，键是需要观察的属性，值是对应回调函数，主要用来监听某些特定数据的变化，从而进行某些具体的业务逻辑操作,监听属性的变化，需要在数据变化时执行异步或开销较大的操作时使用
+
+
+
+**computed 计算属性** 属性的结果会被`缓存`，当`computed`中的函数所依赖的属性没有发生改变的时候，那么调用当前函数的时候结果会从**缓存中读取**。除非依赖的响应式属性变化时才会重新计算，主要当做属性来使用 `computed`中的函数必须用`return`返回最终的结果 `computed`更高效，优先使用。`data 不改变，computed 不更新。`
+
+
+
+**使用场景** `computed`：当一个属性受多个属性影响的时候使用，例：购物车商品结算功能 `watch`：当一条数据影响多条数据的时候使用，例：搜索数据
+
+简单来说：  `computed`  使用在 一对多 情况下 ，   `watch ` 使用在  多对一   的情况下
+
+
+
+
+
+
+
+## vue2底层实现原理
+
+
+
+vue.js是采用数据劫持结合**发布者-订阅者模式**的方式，通过`Object.defineProperty()`来劫持各个属性的setter和getter，在数据变动时发布消息给订阅者，触发相应的监听回调
+
+Vue是一个典型的MVVM框架，模型（Model）只是普通的javascript对象，修改它则试图（View）会自动更新。这种设计让状态管理变得非常简单而直观
+
+**Observer（数据监听器）** : Observer的核心是通过`Object.defineProprtty()`来监听数据的变动，这个函数内部可以定义setter和getter，每当数据发生变化，就会触发setter。这时候Observer就要通知订阅者，订阅者就是Watcher
+
+**Watcher（订阅者）** : Watcher订阅者作为`Observer`和`Compile`之间通信的桥梁，主要做的事情是：
+
+1. 在自身实例化时往属性订阅器(dep)里面添加自己
+2. 自身必须有一个update()方法
+3. 待属性变动dep.notice()通知时，能调用自身的update()方法，并触发Compile中绑定的回调
+
+**Compile（指令解析器）** : Compile主要做的事情是解析模板指令，将模板中变量替换成数据，然后初始化渲染页面视图，并将每个指令对应的节点绑定更新函数，添加鉴定数据的订阅者，一旦数据有变动，收到通知，更新试图
+
+
+
+> 总结： vue2的数据劫持，是使用了 **发布者 与 订阅者模式**  ，  底层通过 `Object.defineProperty()` 来劫持各个属性的getter 和 setter 、 当数据发生变化时，执行相应的回调
+
+> 数据监听使用的是 `Observer` （数据解析器）： 就是使用 `Object.defindProperty()` 监听的， 在数据变化后， 触发 setter  ， 这个时候   监听器就要通知 订阅者 （Watcher） 。 实现发布订阅的模式
+
+> *订阅者*  `Watcher`  :   作为  监听器 (Observer) 和 (Compile) 之间的通信桥梁，主要做的事： 改变属性数据，并且触发 `Compile` 中绑定的回调。
+
+> Compile 对vue 的模板进行编译，数据替换，渲染、 更新页面
+
+
+
+
+
+
+
+
+
+## React / Vue 项目中 key 的作用
+
+
+
+`key`  的作用是为了在 diff 算法执行时更快找到节点，  *提高diff算法的速度，更高效的更新虚拟DOM*
+
+
+
+vue和react 都是采用了diff算法来对比 新旧的虚拟节点， 从而更新节点。 
+
+在vue的diff函数中，会根据新节点的key去对比旧节点数组中的key，从而找到相应旧节点。如果没找到就认为是一个新增节点。
+
+而如果有key，那么就会采用遍历查找的方式去找到对应的旧节点。一种一个map映射，另一种是遍历查找。相比而言。map映射的速度更快。
+
+为了在数据变化时强制更新组件，以避免`“就地复用”`带来的副作用。
+
+
+
+
+
+> vue和react 都是采用了diff算法来对比 新旧的虚拟节点， 从而更新节点， 
+>
+> key的作用就是为了在 diff 算法执行时更快找到节点，提升diff 算法的速度，更高效的更新虚拟DOM
+
+
+
+
+
+
+
+
+
+## vue中`nextTick` 的实现
+
+
+
+`nextTick` 的作用 :   是vue提供一个全局的API， 是在下次DOM更新循环结束后执行的回调， 在修改数据之后使用`$nextTick`  可以在回调中获取到更新后的DOM
+
+
+
+Vue在更新DOM时是异步执行的。只要侦听到数据变化，`Vue`将开启1个队列，并缓冲在同一事件循环中发生的所有数据变更。如果同一个`watcher`被多次触发，只会被推入到队列中-次。这种在缓冲时去除重复数据对于避免不必要的计算和`DOM`操作是非常重要的。`nextTick`方法会在队列中加入一个回调函数，确保该函数在前面的dom操作完成后才调用；
+
+
+
+
+
+> 这里记住`nextTick` 的作用，和它的使用场景:  
+>
+> `nextTick` 在下次DOM更新循环结束之后执行的回调， 修改数据后使用 `$nextTick` 可以在回调中获取到更新后的DOM
+
+> 使用场景： 在DOM更新后， 自动选中 input 输入框
+
+
+
+## nextTick 的实现原理
+
+
+
+在下次 DOM 更新循环结束之后执行延迟回调，在修改数据之后立即使用 nextTick 来获取更新后的 DOM。 nextTick主要使用了宏任务和微任务。 根据执行环境分别尝试采用Promise、MutationObserver、setImmediate，如果以上都不行则采用setTimeout定义了一个异步方法，多次调用nextTick会将方法存入队列中，通过这个异步方法清空当前队列。
+
+
+
+
+
+## vue2中的插槽 
+
+
+
+vue中的插槽其实就是一个 占位的
+
+插槽分别有 ： 
+
+- 默认插槽
+- 具名插槽
+- 作用域插槽
+
+
+
+
+
+
+
+## vue中的keep-alive 实现
+
+
+
+`keep-alive` 的作用： 实现组件的缓存，保持这些组件的状态， 以避免反复渲染导致的性能问题。 需要缓存组件、频繁切换，不需要重复渲染。 keep-alive 一般用在 vue-router 上
+
+​	
+
+
+
+原理：`Vue.js`内部将`DOM`节点抽象成了一个个的`VNode`节点，`keep-alive`组件的缓存也是基于`VNode`节点的而不是直接存储`DOM`结构。它将满足条件`（pruneCache与pruneCache）`的组件在`cache`对象中缓存起来，在需要重新渲染的时候再将`vnode`节点从`cache`对象中取出并渲染。
+
