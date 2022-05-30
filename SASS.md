@@ -40,6 +40,9 @@ npm install -g sass
 
 // 编译scss 文件
 sass input.scss ouput.css
+
+// 监视模式
+sass -w  input.scss ouput.css
 ```
 
 
